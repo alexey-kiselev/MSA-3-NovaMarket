@@ -1,0 +1,79 @@
+@startuml c2_container
+
+skinparam componentStyle rectangle
+skinparam defaultTextAlignment center
+
+skinparam component {
+  BackgroundColor #1976D2
+  BorderColor #1976D2
+  FontColor White
+}
+
+skinparam database {
+  BackgroundColor #E8F5E9
+  BorderColor #2E7D32
+}
+
+title NovaMarket - C2 Container (EDA + CQRS, история покупок)
+
+actor "Покупатель" as Buyer
+actor "Продавец" as Seller
+
+rectangle "NovaMarket" {
+  ' новое
+  component "Order History Service\n[Container: Kotlin, Spring Boot]\nистория (read, CQRS)" as History
+  ' новое
+  database "Order History DB\n[документное хранилище]" as HistoryDB
+  component "API Gateway\n[Container: NGINX]\nмаршрутизация" as GW
+  component "Catalog Service\n[Container: Kotlin, Spring Boot]\nкаталог" as Catalog
+  component "Cart Service\n[Container: Kotlin, Spring Boot]\nкорзина" as Cart
+  component "Order Service\n[Container: Kotlin, Spring Boot]\nзаказы" as Order
+  component "Inventory Service\n[Container: Kotlin, Spring Boot]\nсклад" as Inventory
+  component "Payment Service\n[Container: Kotlin, Spring Boot]\nоплата" as Payment
+  component "Delivery Service\n[Container: Kotlin, Spring Boot]\nдоставка" as Delivery
+  component "Notification Service\n[Container: Kotlin, Spring Boot]\nуведомления" as Notify
+}
+
+cloud "Платёжный шлюз" as PayGW
+cloud "Служба доставки" as Logistics
+
+Buyer --> GW : HTTPS
+GW --> Catalog : REST
+GW --> Cart : REST
+GW --> Order : REST
+' новое
+GW --> History : REST
+
+Order --> Inventory : OrderPlaced [kafka]
+Inventory --> Payment : InventoryReserved [kafka]
+Inventory --> Order : InventoryReserved [kafka]
+Payment --> Delivery : PaymentSucceeded [kafka]
+Payment --> Order : PaymentSucceeded [kafka]
+Payment --> Notify : PaymentSucceeded [kafka]
+Delivery --> Order : DeliveryShipped [kafka]
+Delivery --> Notify : DeliveryShipped [kafka]
+Order --> Notify : OrderCancelled [kafka]
+Order --> Inventory : OrderCancelled [kafka]
+
+' новое
+Order --> History : OrderPlaced [kafka]
+' новое
+Order --> History : OrderCancelled [kafka]
+' новое
+Payment --> History : PaymentSucceeded [kafka]
+' новое
+Payment --> History : PaymentFailed [kafka]
+' новое
+Payment --> History : PaymentRefunded [kafka]
+' новое
+Delivery --> History : DeliveryShipped [kafka]
+' новое
+Delivery --> History : DeliveryCompleted [kafka]
+' новое
+History --> HistoryDB : Доступ к данным
+
+Notify --> Seller : Отправка уведомлений
+Payment --> PayGW : Списание/Возврат
+Delivery --> Logistics : Создание отправки
+
+@enduml
