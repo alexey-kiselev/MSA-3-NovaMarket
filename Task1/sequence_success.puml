@@ -1,0 +1,50 @@
+@startuml sequence_success
+
+title Saga - Успешные сценарии
+
+skinparam participant<<service>> {
+  BackgroundColor #1976D2
+  BorderColor #1976D2
+  FontColor White
+}
+hide <<service>> stereotype
+
+actor "Покупатель" as Buyer
+participant "API Gateway" as GW <<service>>
+participant "Order Service" as Order <<service>>
+participant "Inventory Service" as Inventory <<service>>
+participant "Payment Service" as Payment <<service>>
+participant "Delivery Service" as Delivery <<service>>
+participant "Notification Service" as Notify <<service>>
+participant "Платёжный шлюз" as PayGW
+participant "Служба доставки" as Logistics
+actor "Продавец" as Seller
+
+Buyer -> GW : HTTPS
+GW -> Order : REST
+Order -> Order : Создать заказ\n(Ожидает оплаты)
+Order -> Inventory : OrderPlaced [kafka]
+
+Inventory -> Inventory : Зарезервировать товары()
+Inventory -> Payment : InventoryReserved [kafka]
+Inventory -> Order : InventoryReserved [kafka]
+
+Payment -> PayGW : Списание
+PayGW --> Payment : OK
+Payment -> Delivery : PaymentSucceeded [kafka]
+Payment -> Order : PaymentSucceeded [kafka]
+Payment -> Notify : PaymentSucceeded [kafka]
+
+Order -> Order : Статус = Оплачен\nи готовится к отправке
+Notify -> Buyer : Заказ оплачен
+Notify -> Seller : Новый заказ
+
+Delivery -> Logistics : Создание отправки
+Logistics --> Delivery : Трек-номер
+Delivery -> Order : DeliveryShipped [kafka]
+Delivery -> Notify : DeliveryShipped [kafka]
+
+Order -> Order : Статус = Передан\nв доставку
+Notify -> Buyer : Заказ в доставке
+
+@enduml

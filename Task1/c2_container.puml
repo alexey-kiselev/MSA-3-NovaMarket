@@ -1,0 +1,51 @@
+@startuml c2_container
+
+skinparam componentStyle rectangle
+skinparam defaultTextAlignment center
+
+skinparam component {
+  BackgroundColor #1976D2
+  BorderColor #1976D2
+  FontColor White
+}
+
+title NovaMarket - C2 Container (EDA)
+
+actor "Покупатель" as Buyer
+actor "Продавец" as Seller
+
+rectangle "NovaMarket" {
+  component "API Gateway\n[Container: NGINX]\nмаршрутизация" as GW
+  component "Catalog Service\n[Container: Kotlin, Spring Boot]\nкаталог" as Catalog
+  component "Cart Service\n[Container: Kotlin, Spring Boot]\nкорзина" as Cart
+  component "Order Service\n[Container: Kotlin, Spring Boot]\nзаказы" as Order
+  component "Inventory Service\n[Container: Kotlin, Spring Boot]\nсклад" as Inventory
+  component "Payment Service\n[Container: Kotlin, Spring Boot]\nоплата" as Payment
+  component "Delivery Service\n[Container: Kotlin, Spring Boot]\nдоставка" as Delivery
+  component "Notification Service\n[Container: Kotlin, Spring Boot]\nуведомления" as Notify
+}
+
+cloud "Платёжный шлюз" as PayGW
+cloud "Служба доставки" as Logistics
+
+Buyer --> GW : HTTPS
+GW --> Catalog : REST
+GW --> Cart : REST
+GW --> Order : REST
+
+Order --> Inventory : OrderPlaced [kafka]
+Inventory --> Payment : InventoryReserved [kafka]
+Inventory --> Order : InventoryReserved [kafka]
+Payment --> Delivery : PaymentSucceeded [kafka]
+Payment --> Order : PaymentSucceeded [kafka]
+Payment --> Notify : PaymentSucceeded [kafka]
+Delivery --> Order : DeliveryShipped [kafka]
+Delivery --> Notify : DeliveryShipped [kafka]
+Order --> Notify : OrderCancelled [kafka]
+Order --> Inventory : OrderCancelled [kafka]
+
+Notify --> Seller : Отправка уведомлений
+Payment --> PayGW : Списание/Возврат
+Delivery --> Logistics : Создание отправки
+
+@enduml
